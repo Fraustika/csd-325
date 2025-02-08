@@ -1,0 +1,103 @@
+import random, sys, time
+
+try:
+    import bext
+except ImportError:
+    print('This program requires the bext module, which you')
+    print('can install by following the instructions at')
+    print('https://pypi.org/project/Bext/')
+    sys.exit()
+
+WIDTH = 22
+HEIGHT = 22
+
+
+TREE = 'A'
+EMPTY = ' '
+FIRE = '@'
+WATER = 'W'
+
+INITIAL_TREE_DENSITY = 0.50
+GROW_CHANCE = 0.01  # Chance a blank space turns into a tree.
+FIRE_CHANCE = 0.05  # Chance a tree is hit by lightning & burns.
+
+def createNewForest():
+    """Returns a dictionary for a new forest data structure."""
+    forest = {'width': WIDTH, 'height': HEIGHT}
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            if (random.random()) <= INITIAL_TREE_DENSITY:
+                forest[(x, y)] = TREE  # Start as a tree.
+            else:
+                forest[(x, y)] = EMPTY  # Start as an empty space.
+    
+    # Place fire at a random position
+    fire_x = random.randint(0, WIDTH - 1)
+    fire_y = random.randint(0, HEIGHT - 1)
+    forest[(fire_x, fire_y)] = FIRE
+    
+    # Add water in the middle of the screen
+    mid_x = WIDTH // 2
+    mid_y = HEIGHT // 2
+    for dx in range(-1, 5):
+        for dy in range(-1, 9):
+            forest[(mid_x + dx, mid_y + dy)] = WATER
+    
+    return forest
+
+def spreadFire(forest):
+    """Simulates the spread of fire in the forest."""
+    new_forest = forest.copy()
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            if forest.get((x, y)) == FIRE:
+                # Spread fire to adjacent trees
+                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < WIDTH and 0 <= ny < HEIGHT and forest.get((nx, ny)) == TREE:
+                        new_forest[(nx, ny)] = FIRE
+                # Burn out the current fire
+                new_forest[(x, y)] = EMPTY
+            elif forest.get((x, y)) == TREE:
+                # Random chance of tree being hit by lightning
+                if random.random() <= FIRE_CHANCE:
+                    new_forest[(x, y)] = FIRE
+            elif forest.get((x, y)) == EMPTY:
+                # Random chance of new tree growing
+                if random.random() <= GROW_CHANCE:
+                    new_forest[(x, y)] = TREE
+    return new_forest
+
+def displayForest(forest):
+    """Displays the forest in the console."""
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            if forest[(x, y)] == TREE:
+                bext.fg('green')
+            elif forest[(x, y)] == FIRE:
+                bext.fg('red')
+            elif forest[(x, y)] == WATER:
+                bext.fg('blue')
+            else:
+                bext.fg('reset')
+            print(forest[(x, y)], end=' ')
+        print()
+
+forest = createNewForest()
+
+while True:
+    bext.clear()
+    displayForest(forest)
+    forest = spreadFire(forest)
+    time.sleep(1)
+        
+    bext.fg('reset')  # Use the default font color.
+    print('Grow chance: {}%  '.format(GROW_CHANCE * 100), end='')
+    print('Lightning chance: {}%  '.format(FIRE_CHANCE * 100), end='')
+    print('Press Ctrl-C to quit.')
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit()  # When Ctrl-C is pressed, end the program.
